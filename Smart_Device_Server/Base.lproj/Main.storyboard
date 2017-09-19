@@ -79,6 +79,7 @@
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="captureView" destination="75W-Z5-VUR" id="8Ei-Jv-4N8"/>
                         <outlet property="imgView1" destination="duY-6a-kyG" id="enb-M7-Dry"/>
                         <outlet property="imgView2" destination="WrV-Fg-6yt" id="sID-vU-wlF"/>
                         <outlet property="label1" destination="zDh-V9-ik5" id="TCn-QA-12Z"/>

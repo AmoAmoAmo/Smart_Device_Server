@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		C40BB4381F70D95600BDB1B0 /* HJUDPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = C40BB4371F70D95600BDB1B0 /* HJUDPServer.m */; };
+		C42530AA1F73BDCE00CD8B8C /* HJH264Encoder.m in Sources */ = {isa = PBXBuildFile; fileRef = C42530A91F73BDCE00CD8B8C /* HJH264Encoder.m */; };
+		C428EFFA1F723A660069541A /* HJTCPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = C428EFF91F723A660069541A /* HJTCPServer.m */; };
 		C44E808C1F700A6A0095E21C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = C44E808B1F700A6A0095E21C /* main.m */; };
 		C44E808F1F700A6A0095E21C /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C44E808E1F700A6A0095E21C /* AppDelegate.m */; };
 		C44E80921F700A6A0095E21C /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = C44E80911F700A6A0095E21C /* ViewController.m */; };
@@ -22,6 +24,11 @@
 		C40BB4391F70D96800BDB1B0 /* UDPSearchDefine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UDPSearchDefine.h; sourceTree = "<group>"; };
 		C40BB43A1F70DB6F00BDB1B0 /* UnixInterfaceDefine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UnixInterfaceDefine.h; sourceTree = "<group>"; };
 		C40BB43C1F70F6EF00BDB1B0 /* HeaderDefine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HeaderDefine.h; sourceTree = "<group>"; };
+		C42530A81F73BDCE00CD8B8C /* HJH264Encoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HJH264Encoder.h; sourceTree = "<group>"; };
+		C42530A91F73BDCE00CD8B8C /* HJH264Encoder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HJH264Encoder.m; sourceTree = "<group>"; };
+		C428EFF81F723A660069541A /* HJTCPServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HJTCPServer.h; sourceTree = "<group>"; };
+		C428EFF91F723A660069541A /* HJTCPServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HJTCPServer.m; sourceTree = "<group>"; };
+		C428EFFC1F723AAD0069541A /* TCPSocketDefine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TCPSocketDefine.h; sourceTree = "<group>"; };
 		C44E80871F700A6A0095E21C /* Smart_Device_Server.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Smart_Device_Server.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C44E808B1F700A6A0095E21C /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		C44E808D1F700A6A0095E21C /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -55,6 +62,16 @@
 			name = UDP;
 			sourceTree = "<group>";
 		};
+		C428EFFB1F723A8B0069541A /* TCP */ = {
+			isa = PBXGroup;
+			children = (
+				C428EFFC1F723AAD0069541A /* TCPSocketDefine.h */,
+				C428EFF81F723A660069541A /* HJTCPServer.h */,
+				C428EFF91F723A660069541A /* HJTCPServer.m */,
+			);
+			name = TCP;
+			sourceTree = "<group>";
+		};
 		C44E807E1F700A6A0095E21C = {
 			isa = PBXGroup;
 			children = (
@@ -80,7 +97,10 @@
 				C40BB43A1F70DB6F00BDB1B0 /* UnixInterfaceDefine.h */,
 				C44E80901F700A6A0095E21C /* ViewController.h */,
 				C44E80911F700A6A0095E21C /* ViewController.m */,
+				C42530A81F73BDCE00CD8B8C /* HJH264Encoder.h */,
+				C42530A91F73BDCE00CD8B8C /* HJH264Encoder.m */,
 				C40BB43B1F70DB7C00BDB1B0 /* UDP */,
+				C428EFFB1F723A8B0069541A /* TCP */,
 				C44E80931F700A6A0095E21C /* Main.storyboard */,
 				C44E80961F700A6A0095E21C /* Assets.xcassets */,
 				C44E80981F700A6A0095E21C /* LaunchScreen.storyboard */,
@@ -172,8 +192,10 @@
 			files = (
 				C44E80921F700A6A0095E21C /* ViewController.m in Sources */,
 				C44E808F1F700A6A0095E21C /* AppDelegate.m in Sources */,
+				C42530AA1F73BDCE00CD8B8C /* HJH264Encoder.m in Sources */,
 				C40BB4381F70D95600BDB1B0 /* HJUDPServer.m in Sources */,
 				C44E808C1F700A6A0095E21C /* main.m in Sources */,
+				C428EFFA1F723A660069541A /* HJTCPServer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

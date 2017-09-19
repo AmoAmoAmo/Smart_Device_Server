@@ -1,0 +1,270 @@
+//
+//  HJTCPServer.m
+//  Smart_Device_Server
+//
+//  Created by Josie on 2017/9/20.
+//  Copyright © 2017年 Josie. All rights reserved.
+//
+//  client 用双socket通道的话，server也要用两个socketfd
+
+#import "HJTCPServer.h"
+#import "UnixInterfaceDefine.h"
+#import "TCPSocketDefine.h"
+
+pthread_mutex_t  mutex_cRecv=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t  mutex_cSend=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t  mutex_dRecv=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
+
+
+@interface HJTCPServer()
+{
+    int     m_connectfd;
+    BOOL    canRecvData;
+    
+    struct sockaddr_in m_clientaddr;
+}
+@end
+
+@implementation HJTCPServer
+
+- (instancetype)init
+{
+    self = [super init];
+    if (self) {
+        m_connectfd = -1;
+        canRecvData = false;
+    }
+    return self;
+}
+
+-(void)startTCPTransmissionService
+{
+    int ret = [self initSocket];
+    if (ret == 0) {
+        
+        // 阻塞，直到客户端来连接
+        if ([self recvTransRequest]) {
+            printf("------- 开始准备传输音视频数据 ---------\n");
+            canRecvData = true;
+            
+            
+            
+        }
+    }
+}
+
+-(int)initSocket
+{
+    struct sockaddr_in my_serveraddr = {0};
+    bzero(&m_clientaddr,sizeof(struct sockaddr_in));
+    socklen_t len = 0;
+    
+    
+    // 1. 打开文件描述符
+    int listenfd = -1, ret = -1;
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    if (listenfd < 0 ) {
+        perror("sockfd error:");
+        return -1;
+    }
+    printf("tcp listenfd = %d\n", listenfd);
+    
+    
+    
+    
+    
+    // 2. bind
+    
+    my_serveraddr.sin_family = AF_INET;                   // IPV4
+    my_serveraddr.sin_port = htons(MY_PORT);              // 服务器端口号 数字 正整数 保证在当前电脑中是唯一的，是自己定义的，大于5000就可以; 考虑字节序
+    my_serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    ret = bind(listenfd, (const struct sockaddr *)&my_serveraddr, sizeof(my_serveraddr));
+    if (ret < 0) {
+        perror("tcp bind error:");
+        return -1;
+    }
+    printf("tcp bind success\n");
+    
+    
+    
+    // 3. listen 监听端口
+    ret =  listen(listenfd, BACKLOG);  // BACKLOG 挂起连接队列的最大长度
+    if (ret < 0) {
+        perror("tcp listen error:");
+        return -1;
+    }
+    printf("****** tcp listen *********\n");
+    
+    
+    
+    // 4. accept 阻塞等待客户
+    m_connectfd = accept(listenfd, (struct sockaddr *)&m_clientaddr, &len); // 阻塞，直到客户端来连接
+    if (m_connectfd < 0) {
+        perror("tcp listen error:");
+        return -1;
+    }
+    printf("------- tcp accept成功 -------, fd = %d\n", m_connectfd);
+    // 连接成功后会返回，通过my_clientaddr变量就可知道是哪个来连接服务器, 进而建立通信。通过connectfd来和客户端进行读写操作
+//    printf("======= tcp accept--------- Address:%s\n",inet_ntoa(m_clientaddr.sin_addr));
+    
+    
+    return 0;
+}
+
+
+
+-(void)stopTCPTransmissionService
+{
+    canRecvData = false;
+    if (m_connectfd > 0) {
+        close(m_connectfd);
+    }
+    printf("---------- TCP已断开 -----------\n");
+}
+
+
+-(void)sendDataToClientWithData:(NSData*)data
+{
+    // NSData 转Byte
+    Byte *myByte = (Byte *)[data bytes];
+    printf("=== %s,   dataLen = %d\n",myByte, (int)[data length]);
+    
+    NSUInteger len = [data length];
+    for (int i=0; i<len; i++){
+        printf("%02x", myByte[i]);
+    }
+    printf("\n");
+    
+    if (canRecvData) {
+        // 开始发送给client
+        [self sendDataSocketData:(char *)myByte dataLength:(int)len];
+        
+    }
+}
+
+
+
+
+
+
+
+-(BOOL)recvTransRequest
+{
+    // 收到客户端发来的视频请求
+    HJ_VideoAndAudioDataRequest request;
+    memset(&request, 0, sizeof(request));
+    
+    printf("---- sizeof request = %ld\n",sizeof(request));
+    
+//    // 打印结构体
+//    char *tempBuf = (char *)malloc(sizeof(request));
+//    memcpy(tempBuf, &request, sizeof(request));
+//    for (int i = 0; i < sizeof(request); i++) {
+//        printf("%02x", tempBuf[i]);
+//    }
+//    printf("\n");
+    
+    
+    // 阻塞，直到客户端来连接
+    if([self recvDataSocketData:(char*)&request dataLength:sizeof(request)]){
+        
+        
+        char tempMsgHeader[5]={0};
+        memcpy(tempMsgHeader, &request.msgHeader.protocolHeader, sizeof(tempMsgHeader));
+        memset(tempMsgHeader+4, 0, 1);
+        NSString* headerStr=[NSString stringWithCString:tempMsgHeader encoding:NSASCIIStringEncoding];
+        if ([headerStr compare:@"HM_D"] == NSOrderedSame) {
+            if (request.msgHeader.controlMask == CODECONTROLL_DATATRANS_REQUEST) {
+                
+                // 开始准备传输音视频数据
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+- (BOOL)sendDataSocketData:(char*)pBuf dataLength: (int)aLength
+{
+    
+    signal(SIGPIPE, SIG_IGN);
+    
+    pthread_mutex_lock(&mutex_dSend);
+    
+    int sendLen=0;
+    long nRet=0;
+    
+    while(sendLen<aLength)
+    {
+        if(m_connectfd>0)
+        {
+            nRet=send(m_connectfd,pBuf,aLength-sendLen,0);
+            
+            if(-1==nRet || 0==nRet)
+            {
+                pthread_mutex_unlock(&mutex_dSend);
+                printf("cSocket send error\n");
+                return false;
+            }
+            
+            sendLen+=nRet;
+            pBuf+=nRet;
+            
+            printf("SEND LEN: %d %d\n",aLength,sendLen);
+        }
+        else
+        {
+            printf("dSocket fd error %d\n",m_connectfd);
+            pthread_mutex_unlock(&mutex_dSend);
+            return false;
+        }
+        
+    }
+    
+    pthread_mutex_unlock(&mutex_dSend);
+    
+    return true;
+}
+
+
+
+- (BOOL)recvDataSocketData: (char*)pBuf dataLength: (int)aLength
+{
+    //
+    signal(SIGPIPE, SIG_IGN);  // 防止程序收到SIGPIPE后自动退出
+
+    pthread_mutex_lock(&mutex_dRecv);
+    
+    int recvLen=0;
+    long nRet=0;
+    
+    while(recvLen<aLength)
+    {
+
+        nRet=recv(m_connectfd,pBuf,aLength-recvLen,0);
+        
+//        for (int i = 0; i < aLength; i++) {
+//            printf("%02x", pBuf[i]);
+//        }
+//        printf("\n");
+//        printf("======= recv -- Address:%s\n",inet_ntoa(m_clientaddr.sin_addr));
+        if(-1==nRet || 0==nRet)
+        {
+            pthread_mutex_unlock(&mutex_dRecv);
+            printf("DSocket recv error\n");
+            return false;
+        }
+        recvLen+=nRet;
+        pBuf+=nRet;
+    }
+    
+    pthread_mutex_unlock(&mutex_dRecv);
+    
+    return true;
+}
+
+@end

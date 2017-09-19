@@ -27,7 +27,7 @@ static const INT16 CONTROLLCODE_SEARCH_BROADCAST_REPLY      = 1;  // 广播回�
 
 
 
-#define MY_PORT     20001  // 发送端口   服务器开放给我们的端口号
+#define MY_PORT     20001  // 发送端口
 #define MAXDATASIZE 100
 
 
