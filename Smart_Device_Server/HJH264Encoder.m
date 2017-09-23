@@ -34,8 +34,10 @@
 }
 
 
--(void)startH264EncodeWithSampleBuffer:(CMSampleBufferRef)sampleBuffer
+-(void)startH264EncodeWithSampleBuffer:(CMSampleBufferRef)sampleBuffer andReturnData:(ReturnDataBlock)block
 {
+    self.returnDataBlock = block;
+    
     dispatch_sync(m_EncodeQueue, ^{
         [self encode:sampleBuffer];
     });
@@ -98,7 +100,14 @@
 // 把编码后的数据写入TCP文件 (判断一帧的长度：以0x00 00 00 01来确定)
 -(void)returnDataToTCPWithHeadData:(NSData*)headData andData:(NSData*)data
 {
+    NSMutableData *tempData = [NSMutableData dataWithData:headData];
+    [tempData appendData:data];
     
+    
+    // 传给socket
+    if (self.returnDataBlock) {
+        self.returnDataBlock(tempData);
+    }
 }
 
 
@@ -212,22 +221,22 @@ void didCompressH264(void *outputCallbackRefCon, void *sourceFrameRefCon, OSStat
 //    [fileHandle writeData:sps];
 //    [fileHandle writeData:ByteHeader];
 //    [fileHandle writeData:pps];
-    
+    [self returnDataToTCPWithHeadData:ByteHeader andData:sps];
+    [self returnDataToTCPWithHeadData:ByteHeader andData:pps];
 }
 - (void)gotEncodedData:(NSData*)data isKeyFrame:(BOOL)isKeyFrame
 {
     NSLog(@"--------- 编码后数据长度： %d, sizeof data = %ld", (int)[data length],sizeof(data));
     NSLog(@"----------- data = %@ ------------", data);
     
-//    if (fileHandle != NULL)
-//    {
-        // 把每一帧的所有NALU数据前四个字节变成0x00 00 00 01之后再写入文件
-        const char bytes[] = "\x00\x00\x00\x01";  // null null null 标题开始
-        size_t length = (sizeof bytes) - 1; //字符串文字具有隐式结尾 '\0'  。    把上一段内容中的’\0‘去掉，
-        NSData *ByteHeader = [NSData dataWithBytes:bytes length:length]; // 复制C数组所包含的数据来初始化NSData的数据
-//        [fileHandle writeData:ByteHeader];
-//        [fileHandle writeData:data];
-//    }
+    // 把每一帧的所有NALU数据前四个字节变成0x00 00 00 01之后再写入文件
+    const char bytes[] = "\x00\x00\x00\x01";  // null null null 标题开始
+    size_t length = (sizeof bytes) - 1; //字符串文字具有隐式结尾 '\0'  。    把上一段内容中的’\0‘去掉，
+    NSData *ByteHeader = [NSData dataWithBytes:bytes length:length]; // 复制C数组所包含的数据来初始化NSData的数据
+    //        [fileHandle writeData:ByteHeader];
+    //        [fileHandle writeData:data];
+    [self returnDataToTCPWithHeadData:ByteHeader andData:data];
+
 }
 
 - (void)EndVideoToolBox

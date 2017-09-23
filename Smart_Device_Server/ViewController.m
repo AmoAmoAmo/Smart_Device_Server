@@ -14,9 +14,6 @@
 #import <AVFoundation/AVFoundation.h>
 #import "HJH264Encoder.h"
 
-//#define DEVICE_STATUS_NOTCONNECT    0
-//#define DEVICE_STATUS_WAITING       1
-//#define DEVICE_STATUS_CONNECTED     2
 
 typedef enum : NSUInteger {
     NOTCONNECT,
@@ -207,11 +204,13 @@ typedef enum : NSUInteger {
         
         // 收到数据，开始编码
         HJH264Encoder *videoEncoder = [[HJH264Encoder alloc] init];
-        [videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer];
+        [videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
+            
+            // 返回一个编码后的数据 data,传给TCP 开始发送给client
+            [self.tcpServer sendDataToClientWithData:data];
+        }];
         
-        // 返回一个编码后的数据
-        //
-//        [self.tcpServer sendDataToClientWithData:data];
+        
         
     }
     else

@@ -20,7 +20,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
 @interface HJTCPServer()
 {
     int     m_connectfd;
-    BOOL    canRecvData;
+    BOOL    canSendData;
     
     struct sockaddr_in m_clientaddr;
 }
@@ -33,7 +33,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     self = [super init];
     if (self) {
         m_connectfd = -1;
-        canRecvData = false;
+        canSendData = false;
     }
     return self;
 }
@@ -46,7 +46,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
         // 阻塞，直到客户端来连接
         if ([self recvTransRequest]) {
             printf("------- 开始准备传输音视频数据 ---------\n");
-            canRecvData = true;
+            canSendData = true;
             
             
             
@@ -117,7 +117,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
 
 -(void)stopTCPTransmissionService
 {
-    canRecvData = false;
+    canSendData = false;
     if (m_connectfd > 0) {
         close(m_connectfd);
     }
@@ -131,15 +131,36 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     Byte *myByte = (Byte *)[data bytes];
     printf("=== %s,   dataLen = %d\n",myByte, (int)[data length]);
     
-    NSUInteger len = [data length];
-    for (int i=0; i<len; i++){
-        printf("%02x", myByte[i]);
-    }
-    printf("\n");
+//    NSUInteger len = [data length];
+//    for (int i=0; i<len; i++){
+//        printf("%02x", myByte[i]);
+//    }
+//    printf("\n");
     
-    if (canRecvData) {
+    if (canSendData) {
+        
+        // 打包成一个结构体
+        HJ_VideoDataContent dataContent;
+        memset((void *)&dataContent, 0, sizeof(dataContent));
+        
+        dataContent.msgHeader.controlMask = CODECONTROLL_VIDEOTRANS_REPLY;
+        dataContent.msgHeader.protocolHeader[0] = 'H';
+        dataContent.msgHeader.protocolHeader[1] = 'M';
+        dataContent.msgHeader.protocolHeader[2] = '_';
+        dataContent.msgHeader.protocolHeader[3] = 'D';
+        
+        dataContent.videoLength = (unsigned int)[data length];
+        
+        int dataLen = (int)[data length];
+        int contentLen = sizeof(dataContent);
+        int totalLen = contentLen + dataLen;
+        
+        char *sendBuf = (char*)malloc(totalLen * sizeof(char));
+        memcpy(sendBuf, &dataContent, contentLen);
+        memcpy(sendBuf + contentLen, myByte, dataLen); // myByte是指针，所以不用再取地址了，注意
+        
         // 开始发送给client
-        [self sendDataSocketData:(char *)myByte dataLength:(int)len];
+        [self sendDataSocketData:sendBuf dataLength:totalLen];
         
     }
 }

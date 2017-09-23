@@ -9,9 +9,15 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 
+typedef void (^ReturnDataBlock)(NSData *data);
+
 @interface HJH264Encoder : NSObject
 
--(void)startH264EncodeWithSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+@property (nonatomic, copy) ReturnDataBlock returnDataBlock;
+
+
+
+-(void)startH264EncodeWithSampleBuffer:(CMSampleBufferRef)sampleBuffer andReturnData:(ReturnDataBlock)block;
 -(void)stopH264Encode;
 
 @end

@@ -67,6 +67,7 @@ typedef struct videoAndAudioDataRequest
 // 视频正文
 typedef struct videoDataContent
 {
+    HJ_MsgHeader        msgHeader;
     unsigned int        timeStamp;          // 时间戳
     unsigned int        frameTime;          // 帧采集时间
     unsigned char       reserved;           // 保留
@@ -79,6 +80,7 @@ typedef struct videoDataContent
 // 音频正文
 typedef struct audioDataContent
 {
+    HJ_MsgHeader        msgHeader;
     unsigned int        timeStamp;          // 时间戳
     unsigned int        packageNum;         // 包序号
     unsigned int        collectTime;        // 采集时间
