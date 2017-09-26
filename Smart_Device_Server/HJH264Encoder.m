@@ -29,6 +29,7 @@
     if (self) {
         m_EncodeQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0); // 获取全局队列，后台执行
         [self initVideoToolBox];
+        
     }
     return self;
 }
@@ -41,8 +42,8 @@
     dispatch_sync(m_EncodeQueue, ^{
         [self encode:sampleBuffer];
     });
-    printf("++++++++++++++++++\n");
 }
+
 
 -(void)stopH264Encode
 {
@@ -61,7 +62,7 @@
         NSLog(@"H264: VTCompressionSessionCreate %d", (int)status);
         if (status != 0)
         {
-            NSLog(@"H264: Unable to create a H264 session");
+            NSLog(@"H264: session 创建失败");
             return ;
         }
         
@@ -97,7 +98,7 @@
 }
 
 
-// 把编码后的数据写入TCP文件 (判断一帧的长度：以0x00 00 00 01来确定)
+// 把编码后的数据写入TCP文件 
 -(void)returnDataToTCPWithHeadData:(NSData*)headData andData:(NSData*)data
 {
     NSMutableData *tempData = [NSMutableData dataWithData:headData];
@@ -135,8 +136,13 @@
 }
 
 // 编码完成回调
-void didCompressH264(void *outputCallbackRefCon, void *sourceFrameRefCon, OSStatus status, VTEncodeInfoFlags infoFlags, CMSampleBufferRef sampleBuffer) {
-    NSLog(@"didCompressH264 called with status %d infoFlags %d", (int)status, (int)infoFlags);
+void didCompressH264(void *outputCallbackRefCon,
+                     void *sourceFrameRefCon,
+                     OSStatus status,
+                     VTEncodeInfoFlags infoFlags,
+                     CMSampleBufferRef sampleBuffer)
+{
+    NSLog(@"didCompressH264 called with status %d infoFlags %d", (int)status, (int)infoFlags); // 0 1
     if (status != 0) {
         return;
     }
@@ -147,7 +153,7 @@ void didCompressH264(void *outputCallbackRefCon, void *sourceFrameRefCon, OSStat
     }
 //    ViewController* encoder = (__bridge ViewController*)outputCallbackRefCon;
     
-    HJH264Encoder *encoder = (__bridge HJH264Encoder*)outputCallbackRefCon;
+    HJH264Encoder *encoder = (__bridge HJH264Encoder*)(outputCallbackRefCon);
     
     // ----- 关键帧获取SPS和PPS ------
     bool keyframe = !CFDictionaryContainsKey( (CFArrayGetValueAtIndex(CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, true), 0)), kCMSampleAttachmentKey_NotSync);
@@ -217,24 +223,20 @@ void didCompressH264(void *outputCallbackRefCon, void *sourceFrameRefCon, OSStat
     const char bytes[] = "\x00\x00\x00\x01";
     size_t length = (sizeof bytes) - 1; //string literals have implicit trailing '\0'
     NSData *ByteHeader = [NSData dataWithBytes:bytes length:length];
-//    [fileHandle writeData:ByteHeader];
-//    [fileHandle writeData:sps];
-//    [fileHandle writeData:ByteHeader];
-//    [fileHandle writeData:pps];
+
     [self returnDataToTCPWithHeadData:ByteHeader andData:sps];
     [self returnDataToTCPWithHeadData:ByteHeader andData:pps];
 }
 - (void)gotEncodedData:(NSData*)data isKeyFrame:(BOOL)isKeyFrame
 {
     NSLog(@"--------- 编码后数据长度： %d, sizeof data = %ld", (int)[data length],sizeof(data));
-    NSLog(@"----------- data = %@ ------------", data);
+//    NSLog(@"----------- data = %@ ------------", data);
     
     // 把每一帧的所有NALU数据前四个字节变成0x00 00 00 01之后再写入文件
     const char bytes[] = "\x00\x00\x00\x01";  // null null null 标题开始
     size_t length = (sizeof bytes) - 1; //字符串文字具有隐式结尾 '\0'  。    把上一段内容中的’\0‘去掉，
     NSData *ByteHeader = [NSData dataWithBytes:bytes length:length]; // 复制C数组所包含的数据来初始化NSData的数据
-    //        [fileHandle writeData:ByteHeader];
-    //        [fileHandle writeData:data];
+
     [self returnDataToTCPWithHeadData:ByteHeader andData:data];
 
 }

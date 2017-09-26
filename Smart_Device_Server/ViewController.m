@@ -39,6 +39,7 @@ typedef enum : NSUInteger {
 
 @property (nonatomic, assign) DeviceStatusEnum  devStatueEnum;
 
+@property (nonatomic, retain) HJH264Encoder *videoEncoder;
 
 
 @property (nonatomic, strong)   AVCaptureSession            *avSession;
@@ -50,7 +51,10 @@ typedef enum : NSUInteger {
 
 @property (weak, nonatomic) IBOutlet UIView *captureView;
 
+@property (nonatomic, assign) BOOL isReadyToVideoEncode;
 
+
+@property (nonatomic, strong) NSFileHandle *fileHandle;
 
 @end
 
@@ -64,9 +68,28 @@ typedef enum : NSUInteger {
     // ***** 测试代码 *****
     self.devStatueEnum = CONNECTED;
     
+    self.isReadyToVideoEncode = false;
+    
     // 在子线程里面操作TCP
     [NSThread detachNewThreadSelector:@selector(startTCPServiceThread) toTarget:self withObject:nil];
+    
+    
+    // 一开始就开始捕获视频
+    [self startCapture];
+    
+//    [self outputTest];
 }
+
+
+
+-(void)outputTest
+{
+    NSString *file = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject] stringByAppendingPathComponent:@"abc.h264"];
+    [[NSFileManager defaultManager] removeItemAtPath:file error:nil];
+    [[NSFileManager defaultManager] createFileAtPath:file contents:nil attributes:nil];
+    self.fileHandle = [NSFileHandle fileHandleForWritingAtPath:file];
+}
+
 
 - (IBAction)clickResetBtn:(id)sender {
     
@@ -105,6 +128,9 @@ typedef enum : NSUInteger {
             self.label1.text = @"已联网"; // 模拟smart config
             
             self.devStatueEnum = CONNECTED;
+            
+            // 连接成功后开始捕获视频
+            [self startCapture];
         });
     }];
     
@@ -125,12 +151,12 @@ typedef enum : NSUInteger {
     NSLog(@"---- status = %ld ", self.devStatueEnum);
     if (self.devStatueEnum == CONNECTED) {
         self.tcpServer = [[HJTCPServer alloc] init];
-        [self.tcpServer startTCPTransmissionService];
-        
-//        // $$$$ 测试代码 ￥￥￥￥NSString *str = @"hello world";
-//        NSString *str = @"hello world";
-//        NSData *data = [str dataUsingEncoding:NSUTF8StringEncoding];
-//        [self.tcpServer sendDataToClientWithData:data];
+        [self.tcpServer startTCPTransmissionServiceAndReturnReadySignal:^(BOOL isReady) {
+            if (isReady) {
+                // 可以开始编码的信号
+                self.isReadyToVideoEncode = true;
+            }
+        }];
     }
 }
 -(void)stopTCP
@@ -141,13 +167,63 @@ typedef enum : NSUInteger {
 
 -(void)startCapture
 {
-    // 显示采集数据的层
-    self.previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:self.avSession];
-    //    NSLog(@"---- capture width = %f, height = %f ", self.captureView.frame.size.width, self.captureView.frame.size.height);
-    self.previewLayer.frame = self.captureView.bounds;
-    // 保留纵横比
+    
+    self.avSession = [[AVCaptureSession alloc] init];
+    self.avSession.sessionPreset = AVCaptureSessionPreset640x480;
+    
+    
+    // 设备对象 (audio)
+    AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+    // 输入流
+    AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:nil];
+    // 输出流
+    AVCaptureAudioDataOutput *audioOutput = [[AVCaptureAudioDataOutput alloc] init];
+    [audioOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
+    // 添加输入输出流
+    if ([_avSession canAddInput:audioInput]) {
+        [_avSession addInput:audioInput];
+    }
+    if ([_avSession canAddOutput:audioOutput]) {
+        [_avSession addOutput:audioOutput];
+    }
+    
+    
+    // 设备对象 (video)
+    AVCaptureDevice *inputCamera = nil;
+    NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+    for (AVCaptureDevice *device in devices)
+    {
+        if ([device position] == AVCaptureDevicePositionBack)
+        {
+            inputCamera = device;
+        }
+    }
+    
+    AVCaptureDeviceInput *videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:inputCamera error:nil];
+    
+    if ([self.avSession canAddInput:videoInput]) {
+        [self.avSession addInput:videoInput];
+    }
+    
+    self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
+    [self.videoOutput setAlwaysDiscardsLateVideoFrames:NO];  // 是否抛弃延迟的帧：NO
+    
+    [self.videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
+    [self.videoOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
+    if ([self.avSession canAddOutput:self.videoOutput]) {
+        [self.avSession addOutput:self.videoOutput];
+    }
+    AVCaptureConnection *connection = [self.videoOutput connectionWithMediaType:AVMediaTypeVideo];
+    [connection setVideoOrientation:AVCaptureVideoOrientationLandscapeRight]; // 因为要横屏，所以让输出视频图像旋转90°
+    
+    self.previewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:self.avSession];
     [self.previewLayer setVideoGravity:AVLayerVideoGravityResizeAspectFill];
-    [self.captureView.layer insertSublayer:self.previewLayer above:0];    //设置layer插入的位置为above0，也就是图层的最底层的上一层
+    [[self.previewLayer connection] setVideoOrientation:AVCaptureVideoOrientationLandscapeRight];// 预览层也让它右转90°
+    [self.previewLayer setFrame:self.captureView.bounds];
+    [self.captureView.layer insertSublayer:self.previewLayer above:0];
+    
+
+    
     
     [self.avSession startRunning];
 }
@@ -166,52 +242,34 @@ typedef enum : NSUInteger {
     // 获取输入设备数据，有可能是音频有可能是视频
     if (captureOutput == self.videoOutput) {
         //捕获到视频数据
-        /*
-         mediaType:'vide'
-         mediaSubType:'420v'     // videoOutput设置成什么类型就是什么类型
-         */
         NSLog(@"视频 ---");
-        NSLog(@"---- sampleBuffer = %@--", sampleBuffer);
-        NSLog(@"==========================================================");
-        // 简单打印摄像头输出数据的信息
-        CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-        OSType videoType =  CVPixelBufferGetPixelFormatType(pixelBuffer);
-        NSLog(@"***** videoType = %d *******",videoType);
-        if (CVPixelBufferIsPlanar(pixelBuffer)) {
-            NSLog(@"kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange -> planar buffer");
+//        CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+//        size_t width = CVPixelBufferGetWidth(pixelBuffer);
+//        size_t height = CVPixelBufferGetHeight(pixelBuffer);
+//        printf("--- width = %d, height = %d \n", (int)width, (int)height); // --- width = 480, height = 640
+        
+        
+
+//        // 测试代码
+//        [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
+//            
+//            [_fileHandle writeData:data];
+//        }];
+        
+        
+        
+        
+        // 当TCP需要开始传输数据时，开始编码
+        if (self.isReadyToVideoEncode) {
+            // 收到数据，开始编码
+            [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
+                
+                // 返回一个编码后的数据 data,传给TCP 开始发送给client
+                [self.tcpServer sendDataToClientWithData:data];
+                
+            }];
         }
-        CMVideoFormatDescriptionRef desc = NULL;
-        CMVideoFormatDescriptionCreateForImageBuffer(NULL, pixelBuffer, &desc);
-        CFDictionaryRef extensions = CMFormatDescriptionGetExtensions(desc);
-        NSLog(@"extensions = %@", extensions);
-        /*
-         extensions = {
-         CVBytesPerRow = 964;
-         CVImageBufferColorPrimaries = "ITU_R_709_2";
-         CVImageBufferTransferFunction = "ITU_R_709_2";
-         CVImageBufferYCbCrMatrix = "ITU_R_709_2";      // ITU_R_709_2是HD视频的方案，一般用于YUV422,YUV至RGB的转换矩阵和SD视频（一般是ITU_R_601_4）并不相同。   ******* MacBook摄像头参数为： 720p FaceTime HD摄像头
-         Version = 2;
-         }
-         */
-        
-        
-        
-        
-    
-        
-        
-        
-        
-        // 收到数据，开始编码
-        HJH264Encoder *videoEncoder = [[HJH264Encoder alloc] init];
-        [videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
-            
-            // 返回一个编码后的数据 data,传给TCP 开始发送给client
-            [self.tcpServer sendDataToClientWithData:data];
-        }];
-        
-        
-        
+
     }
     else
     {
@@ -231,94 +289,87 @@ typedef enum : NSUInteger {
 
 #pragma mark - 懒加载
 
--(AVCaptureSession *)avSession
-{
-    if (!_avSession) {
-        
-        _avSession = [[AVCaptureSession alloc] init];
-        _avSession.sessionPreset = AVCaptureSessionPreset640x480;
-        
-        // 设备对象 (audio)
-        AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
-        // 输入流
-        AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:nil];
-        // 输出流
-        AVCaptureAudioDataOutput *audioOutput = [[AVCaptureAudioDataOutput alloc] init];
-        [audioOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
-        // 添加输入输出流
-        if ([_avSession canAddInput:audioInput]) {
-            [_avSession addInput:audioInput];
-        }
-        if ([_avSession canAddOutput:audioOutput]) {
-            [_avSession addOutput:audioOutput];
-        }
-        
-        
-        
-        
-        // 设备对象 (video)
-        AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-        
-        
-        // 输入流
-        AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:nil];
-        
-        // 输出流
-        self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
-        
-        [self.videoOutput setAlwaysDiscardsLateVideoFrames:NO];
-        
-        //        [self.videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
-        
-        // 帧的大小在这里设置才有效
-        self.videoOutput.videoSettings = [NSDictionary dictionaryWithObjectsAndKeys:
-                                          [NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange], kCVPixelBufferPixelFormatTypeKey,
-                                          [NSNumber numberWithInt: 640], (id)kCVPixelBufferWidthKey,
-                                          [NSNumber numberWithInt: 480], (id)kCVPixelBufferHeightKey,
-                                          nil];
-        /*
-         调用次数       CVBytesPerRow
-         kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;      （420f）                       1924
-         kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ;      420v                        1924            964
-         kCVPixelFormatType_422YpCbCr8_yuvs;                    yuvs            30          2560
-         kCVPixelFormatType_422YpCbCr8                          2vuy            30          2560
-         */
-        [self.videoOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
-        
-        
-        
-        
-        
-        // 获取当前设备支持的像素格式
-        NSLog(@"-- videoDevice.formats = %@", videoDevice.formats);
-        
-        //根据设备输出获得连接
-        AVCaptureConnection *connection = [self.videoOutput connectionWithMediaType:AVMediaTypeVideo];
-        [connection setVideoOrientation:AVCaptureVideoOrientationPortrait];
-        
-        
-        
-//        // 前置摄像头翻转
-//        AVCaptureDevicePosition currentPosition=[[videoInput device] position];
-//        if (currentPosition == AVCaptureDevicePositionUnspecified || currentPosition == AVCaptureDevicePositionFront) {
-//            connection.videoMirrored = YES;
-//        } else {
-//            connection.videoMirrored = NO;
+//-(AVCaptureSession *)avSession
+//{
+//    if (!_avSession) {
+//        
+//        _avSession = [[AVCaptureSession alloc] init];
+//        _avSession.sessionPreset = AVCaptureSessionPreset640x480;
+//        
+//        // 设备对象 (audio)
+//        AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+//        // 输入流
+//        AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:nil];
+//        // 输出流
+//        AVCaptureAudioDataOutput *audioOutput = [[AVCaptureAudioDataOutput alloc] init];
+//        [audioOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
+//        // 添加输入输出流
+//        if ([_avSession canAddInput:audioInput]) {
+//            [_avSession addInput:audioInput];
 //        }
-        
-        
-        
-        if ([_avSession canAddInput:videoInput]) {
-            [_avSession addInput:videoInput];
-        }
-        if ([_avSession canAddOutput:self.videoOutput]) {
-            [_avSession addOutput:self.videoOutput];
-        }
-        
-        
-        
+//        if ([_avSession canAddOutput:audioOutput]) {
+//            [_avSession addOutput:audioOutput];
+//        }
+//        
+//        
+//        
+//        
+//        // 设备对象 (video)
+//        AVCaptureDevice *videoDevice = nil;
+//        NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+//        for (AVCaptureDevice *device in devices)
+//        {
+//            if ([device position] == AVCaptureDevicePositionBack)
+//            {
+//                videoDevice = device;
+//            }
+//        }
+//        
+//        
+//        // 输入流
+//        AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:nil];
+//        
+//        // 输出流
+//        self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
+//        [self.videoOutput setAlwaysDiscardsLateVideoFrames:NO];
+//        
+//        [self.videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
+//        
+//        [self.videoOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
+//        
+//        
+//        
+//        
+//        
+//        //根据设备输出获得连接
+//        AVCaptureConnection *connection = [self.videoOutput connectionWithMediaType:AVMediaTypeVideo];
+//        [connection setVideoOrientation:AVCaptureVideoOrientationPortrait]; // AVCaptureVideoOrientationPortrait
+//        
+//        
+//        
+//        
+//        if ([_avSession canAddInput:videoInput]) {
+//            [_avSession addInput:videoInput];
+//        }
+//        if ([_avSession canAddOutput:self.videoOutput]) {
+//            [_avSession addOutput:self.videoOutput];
+//        }
+//        
+//        
+//        
+//    }
+//    return _avSession;
+//}
+
+
+-(HJH264Encoder *)videoEncoder
+{
+    if (!_videoEncoder) {
+        _videoEncoder = [[HJH264Encoder alloc] init];
     }
-    return _avSession;
+    return _videoEncoder;
 }
+
+
 
 @end

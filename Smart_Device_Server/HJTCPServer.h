@@ -8,9 +8,13 @@
 
 #import <Foundation/Foundation.h>
 
+typedef void (^ReturnReadySignalBlock) (BOOL isReady); // 可以准备编码了
+
 @interface HJTCPServer : NSObject
 
--(void)startTCPTransmissionService;
+@property (nonatomic, copy) ReturnReadySignalBlock readyBlock;
+
+-(void)startTCPTransmissionServiceAndReturnReadySignal:(ReturnReadySignalBlock)block;
 -(void)sendDataToClientWithData:(NSData*)data; // 收到编码后的数据，发送给客户端
 -(void)stopTCPTransmissionService;
 

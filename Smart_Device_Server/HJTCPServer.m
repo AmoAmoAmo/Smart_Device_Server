@@ -38,8 +38,10 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     return self;
 }
 
--(void)startTCPTransmissionService
+-(void)startTCPTransmissionServiceAndReturnReadySignal:(ReturnReadySignalBlock)block
 {
+    self.readyBlock = block;
+    
     int ret = [self initSocket];
     if (ret == 0) {
         
@@ -47,9 +49,8 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
         if ([self recvTransRequest]) {
             printf("------- 开始准备传输音视频数据 ---------\n");
             canSendData = true;
-            
-            
-            
+            // block
+            self.readyBlock(true);
         }
     }
 }
@@ -108,6 +109,19 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     printf("------- tcp accept成功 -------, fd = %d\n", m_connectfd);
     // 连接成功后会返回，通过my_clientaddr变量就可知道是哪个来连接服务器, 进而建立通信。通过connectfd来和客户端进行读写操作
 //    printf("======= tcp accept--------- Address:%s\n",inet_ntoa(m_clientaddr.sin_addr));
+    
+    
+    
+    struct timeval timeout = {10,0};
+    
+    if(setsockopt(m_connectfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(struct timeval)))
+    {
+        return -1;
+    }
+    if(setsockopt(m_connectfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(struct timeval) ))
+    {
+        return -1;
+    }
     
     
     return 0;
@@ -277,8 +291,13 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
         {
             pthread_mutex_unlock(&mutex_dRecv);
             printf("DSocket recv error\n");
+            if (0 == nRet) {
+                printf("收到TCP连接断开消息...\n");
+                [self stopTCPTransmissionService];
+            }
             return false;
         }
+        
         recvLen+=nRet;
         pBuf+=nRet;
     }
