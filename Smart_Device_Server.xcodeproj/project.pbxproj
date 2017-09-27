@@ -16,6 +16,7 @@
 		C44E80951F700A6A0095E21C /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C44E80931F700A6A0095E21C /* Main.storyboard */; };
 		C44E80971F700A6A0095E21C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C44E80961F700A6A0095E21C /* Assets.xcassets */; };
 		C44E809A1F700A6A0095E21C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C44E80981F700A6A0095E21C /* LaunchScreen.storyboard */; };
+		C457F0801F7BBF9800F48E10 /* AACEncoder.m in Sources */ = {isa = PBXBuildFile; fileRef = C457F07F1F7BBF9800F48E10 /* AACEncoder.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,8 @@
 		C44E80961F700A6A0095E21C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C44E80991F700A6A0095E21C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		C44E809B1F700A6A0095E21C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C457F07E1F7BBF9800F48E10 /* AACEncoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AACEncoder.h; sourceTree = "<group>"; };
+		C457F07F1F7BBF9800F48E10 /* AACEncoder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AACEncoder.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +100,8 @@
 				C40BB43A1F70DB6F00BDB1B0 /* UnixInterfaceDefine.h */,
 				C44E80901F700A6A0095E21C /* ViewController.h */,
 				C44E80911F700A6A0095E21C /* ViewController.m */,
+				C457F07E1F7BBF9800F48E10 /* AACEncoder.h */,
+				C457F07F1F7BBF9800F48E10 /* AACEncoder.m */,
 				C42530A81F73BDCE00CD8B8C /* HJH264Encoder.h */,
 				C42530A91F73BDCE00CD8B8C /* HJH264Encoder.m */,
 				C40BB43B1F70DB7C00BDB1B0 /* UDP */,
@@ -194,6 +199,7 @@
 				C44E808F1F700A6A0095E21C /* AppDelegate.m in Sources */,
 				C42530AA1F73BDCE00CD8B8C /* HJH264Encoder.m in Sources */,
 				C40BB4381F70D95600BDB1B0 /* HJUDPServer.m in Sources */,
+				C457F0801F7BBF9800F48E10 /* AACEncoder.m in Sources */,
 				C44E808C1F700A6A0095E21C /* main.m in Sources */,
 				C428EFFA1F723A660069541A /* HJTCPServer.m in Sources */,
 			);

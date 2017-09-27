@@ -229,7 +229,7 @@ void didCompressH264(void *outputCallbackRefCon,
 }
 - (void)gotEncodedData:(NSData*)data isKeyFrame:(BOOL)isKeyFrame
 {
-    NSLog(@"--------- 编码后数据长度： %d, sizeof data = %ld", (int)[data length],sizeof(data));
+    NSLog(@"--------- 编码后数据长度： %d -----", (int)[data length]);
 //    NSLog(@"----------- data = %@ ------------", data);
     
     // 把每一帧的所有NALU数据前四个字节变成0x00 00 00 01之后再写入文件

@@ -143,7 +143,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
 {
     // NSData 转Byte
     Byte *myByte = (Byte *)[data bytes];
-    printf("=== %s,   dataLen = %d\n",myByte, (int)[data length]);
+    printf("=== send dataLen = %d\n", (int)[data length]);
     
 //    NSUInteger len = [data length];
 //    for (int i=0; i<len; i++){
@@ -243,6 +243,8 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
             {
                 pthread_mutex_unlock(&mutex_dSend);
                 printf("cSocket send error\n");
+                printf("收到TCP连接断开消息..., fd = %d\n", m_connectfd);
+                [self stopTCPTransmissionService];
                 return false;
             }
             

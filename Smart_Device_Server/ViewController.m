@@ -70,6 +70,8 @@ typedef enum : NSUInteger {
     
     self.isReadyToVideoEncode = false;
     
+    self.videoEncoder = [[HJH264Encoder alloc] init];
+    
     // 在子线程里面操作TCP
     [NSThread detachNewThreadSelector:@selector(startTCPServiceThread) toTarget:self withObject:nil];
     
@@ -110,6 +112,11 @@ typedef enum : NSUInteger {
         [self stopTCP];
         self.tcpServer = nil;
     }
+    // 编码也应该停止
+    if (self.videoEncoder) {
+        [self.videoEncoder stopH264Encode];
+        self.videoEncoder = nil;
+    }
 }
 
 // 阻塞等待接收UDP广播包
@@ -148,7 +155,7 @@ typedef enum : NSUInteger {
 
 -(void)startTCPServiceThread
 {
-    NSLog(@"---- status = %ld ", self.devStatueEnum);
+    NSLog(@"---- status = %ld ", (unsigned long)self.devStatueEnum);
     if (self.devStatueEnum == CONNECTED) {
         self.tcpServer = [[HJTCPServer alloc] init];
         [self.tcpServer startTCPTransmissionServiceAndReturnReadySignal:^(BOOL isReady) {
@@ -242,7 +249,7 @@ typedef enum : NSUInteger {
     // 获取输入设备数据，有可能是音频有可能是视频
     if (captureOutput == self.videoOutput) {
         //捕获到视频数据
-        NSLog(@"视频 ---");
+//        NSLog(@"视频 ---");
 //        CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
 //        size_t width = CVPixelBufferGetWidth(pixelBuffer);
 //        size_t height = CVPixelBufferGetHeight(pixelBuffer);
@@ -278,7 +285,7 @@ typedef enum : NSUInteger {
          mediaType:'soun'
          mediaSubType:'lpcm'
          */
-        NSLog(@"--- 音频 ----");
+//        NSLog(@"--- 音频 ----");
         
         
         
@@ -289,86 +296,14 @@ typedef enum : NSUInteger {
 
 #pragma mark - 懒加载
 
-//-(AVCaptureSession *)avSession
+
+//-(HJH264Encoder *)videoEncoder
 //{
-//    if (!_avSession) {
-//        
-//        _avSession = [[AVCaptureSession alloc] init];
-//        _avSession.sessionPreset = AVCaptureSessionPreset640x480;
-//        
-//        // 设备对象 (audio)
-//        AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
-//        // 输入流
-//        AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:nil];
-//        // 输出流
-//        AVCaptureAudioDataOutput *audioOutput = [[AVCaptureAudioDataOutput alloc] init];
-//        [audioOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
-//        // 添加输入输出流
-//        if ([_avSession canAddInput:audioInput]) {
-//            [_avSession addInput:audioInput];
-//        }
-//        if ([_avSession canAddOutput:audioOutput]) {
-//            [_avSession addOutput:audioOutput];
-//        }
-//        
-//        
-//        
-//        
-//        // 设备对象 (video)
-//        AVCaptureDevice *videoDevice = nil;
-//        NSArray *devices = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
-//        for (AVCaptureDevice *device in devices)
-//        {
-//            if ([device position] == AVCaptureDevicePositionBack)
-//            {
-//                videoDevice = device;
-//            }
-//        }
-//        
-//        
-//        // 输入流
-//        AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:nil];
-//        
-//        // 输出流
-//        self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
-//        [self.videoOutput setAlwaysDiscardsLateVideoFrames:NO];
-//        
-//        [self.videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_420YpCbCr8BiPlanarFullRange] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
-//        
-//        [self.videoOutput setSampleBufferDelegate:self queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
-//        
-//        
-//        
-//        
-//        
-//        //根据设备输出获得连接
-//        AVCaptureConnection *connection = [self.videoOutput connectionWithMediaType:AVMediaTypeVideo];
-//        [connection setVideoOrientation:AVCaptureVideoOrientationPortrait]; // AVCaptureVideoOrientationPortrait
-//        
-//        
-//        
-//        
-//        if ([_avSession canAddInput:videoInput]) {
-//            [_avSession addInput:videoInput];
-//        }
-//        if ([_avSession canAddOutput:self.videoOutput]) {
-//            [_avSession addOutput:self.videoOutput];
-//        }
-//        
-//        
-//        
+//    if (!_videoEncoder) {
+//        _videoEncoder = [[HJH264Encoder alloc] init];
 //    }
-//    return _avSession;
+//    return _videoEncoder;
 //}
-
-
--(HJH264Encoder *)videoEncoder
-{
-    if (!_videoEncoder) {
-        _videoEncoder = [[HJH264Encoder alloc] init];
-    }
-    return _videoEncoder;
-}
 
 
 
