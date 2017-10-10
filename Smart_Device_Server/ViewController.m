@@ -70,7 +70,7 @@ typedef enum : NSUInteger {
     
     self.isReadyToVideoEncode = false;
     
-    self.videoEncoder = [[HJH264Encoder alloc] init];
+    
     
     // 在子线程里面操作TCP
     [NSThread detachNewThreadSelector:@selector(startTCPServiceThread) toTarget:self withObject:nil];
@@ -102,10 +102,7 @@ typedef enum : NSUInteger {
     self.imgView1.image = [UIImage imageNamed:@"未连接"];
     self.imgView2.image = [UIImage imageNamed:@"未连接"];
     
-    if (self.server) {
-        [self stopUDP];
-    }
-    [self startUDP];
+    
     
     // reset时，TCP应该被停止
     if (self.tcpServer) {
@@ -117,6 +114,11 @@ typedef enum : NSUInteger {
         [self.videoEncoder stopH264Encode];
         self.videoEncoder = nil;
     }
+    
+    if (self.server) {
+        [self stopUDP];
+    }
+    [self startUDP];
 }
 
 // 阻塞等待接收UDP广播包
@@ -231,7 +233,7 @@ typedef enum : NSUInteger {
     
 
     
-    
+    self.videoEncoder = [[HJH264Encoder alloc] init];
     [self.avSession startRunning];
 }
 
@@ -266,16 +268,31 @@ typedef enum : NSUInteger {
         
         
         
-        // 当TCP需要开始传输数据时，开始编码
-        if (self.isReadyToVideoEncode) {
-            // 收到数据，开始编码
-            [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
-                
+//        // 当TCP需要开始传输数据时，开始编码
+//        if (self.isReadyToVideoEncode) {
+//            // 收到数据，开始编码
+//            [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
+//                
+//                // 返回一个编码后的数据 data,传给TCP 开始发送给client
+//                [self.tcpServer sendDataToClientWithData:data];
+//                
+//            }];
+//        }
+        
+        
+        
+        // 收到数据，开始编码
+        [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
+            
+            // 当TCP需要开始传输数据时，开始传编码后的数据
+            if (self.isReadyToVideoEncode) {
                 // 返回一个编码后的数据 data,传给TCP 开始发送给client
                 [self.tcpServer sendDataToClientWithData:data];
-                
-            }];
-        }
+            }
+            
+            
+        }];
+        
 
     }
     else

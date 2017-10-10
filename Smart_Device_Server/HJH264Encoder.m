@@ -101,6 +101,7 @@
 // 把编码后的数据写入TCP文件 
 -(void)returnDataToTCPWithHeadData:(NSData*)headData andData:(NSData*)data
 {
+    printf("---- 编码后的数据data大小 = %d + %d \n",(int)[headData length] ,(int)[data length]);
     NSMutableData *tempData = [NSMutableData dataWithData:headData];
     [tempData appendData:data];
     
