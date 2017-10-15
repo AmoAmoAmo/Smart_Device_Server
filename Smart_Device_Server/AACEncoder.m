@@ -18,6 +18,7 @@
 @end
 
 @implementation AACEncoder
+
 - (void) dealloc {
     AudioConverterDispose(_audioConverter);
     free(_aacBuffer);
@@ -188,8 +189,10 @@ OSStatus inInputDataProc(AudioConverterRef inAudioConverter, UInt32 *ioNumberDat
         } else {
             error = [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:nil];
         }
+        
         if (completionBlock) {
             dispatch_async(_callbackQueue, ^{
+//                printf("----- audio data len = %d ----\n",(int)[data length]);
                 completionBlock(data, error);
             });
         }
@@ -229,4 +232,6 @@ OSStatus inInputDataProc(AudioConverterRef inAudioConverter, UInt32 *ioNumberDat
     NSData *data = [NSData dataWithBytesNoCopy:packet length:adtsLength freeWhenDone:YES];
     return data;
 }
+
+
 @end

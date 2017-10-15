@@ -47,7 +47,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
         
         // 阻塞，直到客户端来连接
         if ([self recvTransRequest]) {
-            printf("------- 开始准备传输音视频数据 ---------\n");
+            printf("------- 准备..传输音视频数据 ---------\n");
             canSendData = true;
             // block
             self.readyBlock(true);
@@ -139,11 +139,11 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
 }
 
 
--(void)sendDataToClientWithData:(NSData*)data
+-(void)sendVideoDataToClientWithData:(NSData*)data
 {
     // NSData 转Byte
     Byte *myByte = (Byte *)[data bytes];
-    printf("=== send dataLen = %d\n", (int)[data length]);
+    printf("=== send video dataLen = %d\n", (int)[data length]);
     
 //    NSUInteger len = [data length];
 //    for (int i=0; i<len; i++){
@@ -179,7 +179,39 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     }
 }
 
-
+// 音频数据
+-(void)sendAudioDataToClientWithData:(NSData *)data
+{
+    // NSData 转Byte
+    Byte *myByte = (Byte *)[data bytes];
+    printf("=== send audio dataLen = %d\n", (int)[data length]);
+    
+    if (canSendData) {
+        
+        // 打包成一个结构体
+        HJ_AudioDataContent dataContent;
+        memset((void *)&dataContent, 0, sizeof(dataContent));
+        
+        dataContent.msgHeader.controlMask = CONTROLLCODE_AUDIOTRANS_REPLY;
+        dataContent.msgHeader.protocolHeader[0] = 'H';
+        dataContent.msgHeader.protocolHeader[1] = 'M';
+        dataContent.msgHeader.protocolHeader[2] = '_';
+        dataContent.msgHeader.protocolHeader[3] = 'D';
+        
+        dataContent.dataLength = (unsigned int)[data length];
+        
+        int dataLen = (int)[data length];
+        int contentLen = sizeof(dataContent);
+        int totalLen = contentLen + dataLen;
+        
+        char *sendBuf = (char*)malloc(totalLen * sizeof(char));
+        memcpy(sendBuf, &dataContent, contentLen);
+        memcpy(sendBuf + contentLen, myByte, dataLen); // myByte是指针，所以不用再取地址了，注意
+        
+        // 开始发送给client
+        [self sendDataSocketData:sendBuf dataLength:totalLen];
+    }
+}
 
 
 
@@ -283,18 +315,11 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     {
 
         nRet=recv(m_connectfd,pBuf,aLength-recvLen,0);
-        
-//        for (int i = 0; i < aLength; i++) {
-//            printf("%02x", pBuf[i]);
-//        }
-//        printf("\n");
-//        printf("======= recv -- Address:%s\n",inet_ntoa(m_clientaddr.sin_addr));
         if(-1==nRet || 0==nRet)
         {
             pthread_mutex_unlock(&mutex_dRecv);
             printf("DSocket recv error\n");
             if (0 == nRet) {
-                printf("收到TCP连接断开消息...\n");
                 [self stopTCPTransmissionService];
             }
             return false;

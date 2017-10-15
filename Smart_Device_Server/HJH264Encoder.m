@@ -101,7 +101,7 @@
 // 把编码后的数据写入TCP文件 
 -(void)returnDataToTCPWithHeadData:(NSData*)headData andData:(NSData*)data
 {
-    printf("---- 编码后的数据data大小 = %d + %d \n",(int)[headData length] ,(int)[data length]);
+    printf("---- video 编码后的数据data大小 = %d + %d \n",(int)[headData length] ,(int)[data length]);
     NSMutableData *tempData = [NSMutableData dataWithData:headData];
     [tempData appendData:data];
     
@@ -133,7 +133,7 @@
         EncodingSession = NULL;
         return;
     }
-    NSLog(@"H264: VTCompressionSessionEncodeFrame Success");
+//    NSLog(@"H264: VTCompressionSessionEncodeFrame Success");
 }
 
 // 编码完成回调
@@ -143,7 +143,7 @@ void didCompressH264(void *outputCallbackRefCon,
                      VTEncodeInfoFlags infoFlags,
                      CMSampleBufferRef sampleBuffer)
 {
-    NSLog(@"didCompressH264 called with status %d infoFlags %d", (int)status, (int)infoFlags); // 0 1
+//    NSLog(@"didCompressH264 called with status %d infoFlags %d", (int)status, (int)infoFlags); // 0 1
     if (status != 0) {
         return;
     }
@@ -220,7 +220,7 @@ void didCompressH264(void *outputCallbackRefCon,
  */
 - (void)gotSpsPps:(NSData*)sps pps:(NSData*)pps
 {
-    NSLog(@"-------- 编码后SpsPps长度: gotSpsPps %d %d", (int)[sps length] + 4, (int)[pps length]+4);
+//    NSLog(@"-------- 编码后SpsPps长度: gotSpsPps %d %d", (int)[sps length] + 4, (int)[pps length]+4);
     const char bytes[] = "\x00\x00\x00\x01";
     size_t length = (sizeof bytes) - 1; //string literals have implicit trailing '\0'
     NSData *ByteHeader = [NSData dataWithBytes:bytes length:length];

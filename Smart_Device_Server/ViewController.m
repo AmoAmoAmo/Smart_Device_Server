@@ -13,7 +13,7 @@
 #import "HJTCPServer.h"
 #import <AVFoundation/AVFoundation.h>
 #import "HJH264Encoder.h"
-
+#import "AACEncoder.h"
 
 typedef enum : NSUInteger {
     NOTCONNECT,
@@ -22,12 +22,9 @@ typedef enum : NSUInteger {
 } DeviceStatusEnum;
 
 @interface ViewController ()<AVCaptureAudioDataOutputSampleBufferDelegate,AVCaptureVideoDataOutputSampleBufferDelegate>
-
-/*
-  1. 未连接
-  2. 等待连接
-  3. 已连接
- */
+{
+    dispatch_queue_t mEncodeQueue;
+}
 @property (weak, nonatomic) IBOutlet UILabel *label1;
 @property (weak, nonatomic) IBOutlet UILabel *label2;
 @property (weak, nonatomic) IBOutlet UIImageView *imgView1;
@@ -41,6 +38,7 @@ typedef enum : NSUInteger {
 
 @property (nonatomic, retain) HJH264Encoder *videoEncoder;
 
+@property (nonatomic , strong) AACEncoder *audioEncoder;
 
 @property (nonatomic, strong)   AVCaptureSession            *avSession;
 
@@ -51,7 +49,7 @@ typedef enum : NSUInteger {
 
 @property (weak, nonatomic) IBOutlet UIView *captureView;
 
-@property (nonatomic, assign) BOOL isReadyToVideoEncode;
+@property (nonatomic, assign) BOOL isReadyToEncode;
 
 
 @property (nonatomic, strong) NSFileHandle *fileHandle;
@@ -68,16 +66,12 @@ typedef enum : NSUInteger {
     // ***** 测试代码 *****
     self.devStatueEnum = CONNECTED;
     
-    self.isReadyToVideoEncode = false;
+    self.isReadyToEncode = false;
     
+    [self initSession];
     
+    [self startDataTransmissionByTCP];
     
-    // 在子线程里面操作TCP
-    [NSThread detachNewThreadSelector:@selector(startTCPServiceThread) toTarget:self withObject:nil];
-    
-    
-    // 一开始就开始捕获视频
-    [self startCapture];
     
 //    [self outputTest];
 }
@@ -109,16 +103,21 @@ typedef enum : NSUInteger {
         [self stopTCP];
         self.tcpServer = nil;
     }
-    // 编码也应该停止
-    if (self.videoEncoder) {
-        [self.videoEncoder stopH264Encode];
-        self.videoEncoder = nil;
-    }
+//    // 编码也应该停止
+//    if (self.videoEncoder) {
+//        [self.videoEncoder stopH264Encode];
+//        self.videoEncoder = nil;
+//    }
     
     if (self.server) {
         [self stopUDP];
     }
+    
     [self startUDP];
+    // 连接成功就断开UDP
+    [self stopUDP];
+    // UDP结束后，应该开启TCP传送数据
+    [self startDataTransmissionByTCP];
 }
 
 // 阻塞等待接收UDP广播包
@@ -137,14 +136,10 @@ typedef enum : NSUInteger {
             self.label1.text = @"已联网"; // 模拟smart config
             
             self.devStatueEnum = CONNECTED;
-            
-            // 连接成功后开始捕获视频
-            [self startCapture];
         });
     }];
     
-    // 连接成功就断开UDP
-    [self stopUDP];
+    
 }
 
 -(void)stopUDP
@@ -154,16 +149,26 @@ typedef enum : NSUInteger {
 
 
 #pragma mark - TCP
+-(void)startDataTransmissionByTCP
+{
+    // 在子线程里面操作TCP
+    [NSThread detachNewThreadSelector:@selector(startTCPServiceThread) toTarget:self withObject:nil];
+    
+    // 一开始就开始捕获视频
+    [self startCapture];
+}
+
 
 -(void)startTCPServiceThread
 {
-    NSLog(@"---- status = %ld ", (unsigned long)self.devStatueEnum);
+//    NSLog(@"---- status = %ld ", (unsigned long)self.devStatueEnum);
     if (self.devStatueEnum == CONNECTED) {
         self.tcpServer = [[HJTCPServer alloc] init];
+        // 收到client的视频请求
         [self.tcpServer startTCPTransmissionServiceAndReturnReadySignal:^(BOOL isReady) {
             if (isReady) {
                 // 可以开始编码的信号
-                self.isReadyToVideoEncode = true;
+                self.isReadyToEncode = true;
             }
         }];
     }
@@ -173,9 +178,10 @@ typedef enum : NSUInteger {
     [self.tcpServer stopTCPTransmissionService];
 }
 
-
--(void)startCapture
+// 初始化Session
+-(void)initSession
 {
+    mEncodeQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     
     self.avSession = [[AVCaptureSession alloc] init];
     self.avSession.sessionPreset = AVCaptureSessionPreset640x480;
@@ -234,10 +240,13 @@ typedef enum : NSUInteger {
 
     
     self.videoEncoder = [[HJH264Encoder alloc] init];
-    [self.avSession startRunning];
+    self.audioEncoder = [[AACEncoder alloc] init];
 }
 
-
+-(void)startCapture
+{
+    [self.avSession startRunning];
+}
 
 
 
@@ -274,23 +283,21 @@ typedef enum : NSUInteger {
 //            [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
 //                
 //                // 返回一个编码后的数据 data,传给TCP 开始发送给client
-//                [self.tcpServer sendDataToClientWithData:data];
+//                [self.tcpServer sendVideoDataToClientWithData:data];
 //                
 //            }];
 //        }
         
         
-        
+        // ---------- test ---------
         // 收到数据，开始编码
         [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
-            
+
             // 当TCP需要开始传输数据时，开始传编码后的数据
-            if (self.isReadyToVideoEncode) {
+            if (self.isReadyToEncode) {
                 // 返回一个编码后的数据 data,传给TCP 开始发送给client
-                [self.tcpServer sendDataToClientWithData:data];
+                [self.tcpServer sendVideoDataToClientWithData:data];
             }
-            
-            
         }];
         
 
@@ -298,11 +305,17 @@ typedef enum : NSUInteger {
     else
     {
         // 音频
-        /*
-         mediaType:'soun'
-         mediaSubType:'lpcm'
-         */
-//        NSLog(@"--- 音频 ----");
+        dispatch_sync(mEncodeQueue, ^{
+            // block回调 返回编码后的音频数据
+//            printf("----- audio -------\n");
+            [self.audioEncoder encodeSampleBuffer:sampleBuffer completionBlock:^(NSData *encodedData, NSError *error) {
+                printf("----- Audio encodedData length = %d ----- \n", (int)[encodedData length]);
+                // 写入socket
+                if (self.isReadyToEncode) {
+//                    [self.tcpServer sendAudioDataToClientWithData:encodedData];
+                }
+            }];
+        });
         
         
         
