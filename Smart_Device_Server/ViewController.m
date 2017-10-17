@@ -96,7 +96,8 @@ typedef enum : NSUInteger {
     self.imgView1.image = [UIImage imageNamed:@"未连接"];
     self.imgView2.image = [UIImage imageNamed:@"未连接"];
     
-    
+    // reset时，停止capture
+    [self.avSession stopRunning];
     
     // reset时，TCP应该被停止
     if (self.tcpServer) {
@@ -259,14 +260,6 @@ typedef enum : NSUInteger {
     
     // 获取输入设备数据，有可能是音频有可能是视频
     if (captureOutput == self.videoOutput) {
-        //捕获到视频数据
-//        NSLog(@"视频 ---");
-//        CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-//        size_t width = CVPixelBufferGetWidth(pixelBuffer);
-//        size_t height = CVPixelBufferGetHeight(pixelBuffer);
-//        printf("--- width = %d, height = %d \n", (int)width, (int)height); // --- width = 480, height = 640
-        
-        
 
 //        // 测试代码
 //        [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
@@ -312,7 +305,7 @@ typedef enum : NSUInteger {
                 printf("----- Audio encodedData length = %d ----- \n", (int)[encodedData length]);
                 // 写入socket
                 if (self.isReadyToEncode) {
-//                    [self.tcpServer sendAudioDataToClientWithData:encodedData];
+                    [self.tcpServer sendAudioDataToClientWithData:encodedData];
                 }
             }];
         });
