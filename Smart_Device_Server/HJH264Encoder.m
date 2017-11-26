@@ -133,7 +133,6 @@
         EncodingSession = NULL;
         return;
     }
-//    NSLog(@"H264: VTCompressionSessionEncodeFrame Success");
 }
 
 // 编码完成回调

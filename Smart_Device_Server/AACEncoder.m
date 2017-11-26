@@ -117,7 +117,7 @@
 }
 
 
-/**
+/** 回调
  *  A callback function that supplies audio data to convert. This callback is invoked repeatedly as the converter is ready for new input data.
  
  */

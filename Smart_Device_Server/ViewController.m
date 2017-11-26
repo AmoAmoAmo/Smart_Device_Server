@@ -62,8 +62,6 @@ typedef enum : NSUInteger {
     [super viewDidLoad];
     // Do any additional setup after loading the view, typically from a nib.
     
-    // 程序一开始默认TCP没有连接，直到UDP被搜索到 -> self.devStatueEnum = CONNECTED;
-    // ***** 测试代码 *****
     self.devStatueEnum = CONNECTED;
     
     self.isReadyToEncode = false;
@@ -102,7 +100,7 @@ typedef enum : NSUInteger {
     // reset时，TCP应该被停止
     if (self.tcpServer) {
         [self stopTCP];
-        self.tcpServer = nil;
+//        self.tcpServer = nil;
     }
 //    // 编码也应该停止
 //    if (self.videoEncoder) {
@@ -170,6 +168,10 @@ typedef enum : NSUInteger {
             if (isReady) {
                 // 可以开始编码的信号
                 self.isReadyToEncode = true;
+                
+                //
+                self.label2.text = @"设备已连接";
+                self.imgView2.image = [UIImage imageNamed:@"已连接"];
             }
         }];
     }
@@ -261,28 +263,6 @@ typedef enum : NSUInteger {
     // 获取输入设备数据，有可能是音频有可能是视频
     if (captureOutput == self.videoOutput) {
 
-//        // 测试代码
-//        [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
-//            
-//            [_fileHandle writeData:data];
-//        }];
-        
-        
-        
-        
-//        // 当TCP需要开始传输数据时，开始编码
-//        if (self.isReadyToVideoEncode) {
-//            // 收到数据，开始编码
-//            [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
-//                
-//                // 返回一个编码后的数据 data,传给TCP 开始发送给client
-//                [self.tcpServer sendVideoDataToClientWithData:data];
-//                
-//            }];
-//        }
-        
-        
-        // ---------- test ---------
         // 收到数据，开始编码
         [self.videoEncoder startH264EncodeWithSampleBuffer:sampleBuffer andReturnData:^(NSData *data) {
 
@@ -317,16 +297,6 @@ typedef enum : NSUInteger {
 
 
 
-#pragma mark - 懒加载
-
-
-//-(HJH264Encoder *)videoEncoder
-//{
-//    if (!_videoEncoder) {
-//        _videoEncoder = [[HJH264Encoder alloc] init];
-//    }
-//    return _videoEncoder;
-//}
 
 
 

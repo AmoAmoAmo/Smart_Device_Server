@@ -44,7 +44,6 @@
     // 1. socket
     int  ret = -1;
     struct sockaddr_in serveraddr = {0};
-//    struct sockaddr_in clientaddr = {0};
     
     m_sockfd = socket(AF_INET, SOCK_DGRAM, 0);  // *** SOCK_DGRAM -> UDP ****
     if (m_sockfd < 0) {
@@ -76,6 +75,7 @@
 -(void)stopUDPService
 {
     m_recvSignal = false;
+    m_sockfd = -1;
 }
 
 -(void)startServiceThread
@@ -86,6 +86,46 @@
     // 3. 回复客户端
     [self sendMsgtoClient];
 }
+
+
+
+// 收到数据包，开始处理它
+-(void)recvDataAndProcess
+{
+    HJ_MsgHeader msgHead;
+    memset (&msgHead,0,sizeof(msgHead));
+    
+    if ([self recvData:(char *)&msgHead length:sizeof(msgHead)]) {
+        
+        if (msgHead.controlMask==CONTROLLCODE_SEARCH_BROADCAST_REQUEST) {
+            
+            NSLog(@"RECV:::::IPADDR: %s Port: %d",inet_ntoa(m_clientaddr.sin_addr),htons(m_clientaddr.sin_port));
+            
+            // 回调
+            self.returnDataBlock(true);
+        }
+    }
+}
+
+-(BOOL)sendMsgtoClient
+{
+    HJ_SearchReply reply;
+    memset (&reply,0,sizeof(reply));
+    int replyLen = sizeof(reply);
+    
+    reply.header.controlMask = CONTROLLCODE_SEARCH_BROADCAST_REPLY;
+    reply.type = CAMERA_TYPE;
+    reply.devID = CAMERA_ID;
+    
+    if ([self sendData:(char *)&reply length:replyLen]) {
+        return true;
+    }
+    
+    return false;
+}
+
+
+
 
 -(BOOL)sendData:(char*)pBuf length:(int)length
 {
@@ -116,64 +156,17 @@
     
     while(readLen<length)
     {
-        //        struct sockaddr_in addrRemote;
-        //        int nLen=sizeof(addrRemote);
-        
         nRet=recvfrom(m_sockfd,pBuf,length-readLen,0,(struct sockaddr*)&m_clientaddr,(socklen_t*)&addrlen);// 一直在搜索 阻塞，直到 接收到服务器的回复，即搜索到设备
         
         if(nRet==-1){
             perror("recvfrom error: \n");
             return false;
         }
-        
-        
         readLen+=nRet;
         pBuf+=nRet;
     }
     return true;
 }
-
--(void)recvDataAndProcess
-{
-//    HJ_SearchReply searchReply;
-//    memset (&searchReply,0,sizeof(searchReply));
-    
-    HJ_MsgHeader msgHead;
-    memset (&msgHead,0,sizeof(msgHead));
-    
-    if ([self recvData:(char *)&msgHead length:sizeof(msgHead)]) {
-        
-        if (msgHead.controlMask==CONTROLLCODE_SEARCH_BROADCAST_REQUEST) {
-            
-            NSLog(@"RECV:::::IPADDR: %s Port: %d",inet_ntoa(m_clientaddr.sin_addr),htons(m_clientaddr.sin_port));
-            
-            // 回调
-            self.returnDataBlock(true);
-        }
-        
-        
-        
-    }
-}
-
--(BOOL)sendMsgtoClient
-{
-    HJ_SearchReply reply;
-    memset (&reply,0,sizeof(reply));
-    int replyLen = sizeof(reply);
-    
-    reply.header.controlMask = CONTROLLCODE_SEARCH_BROADCAST_REPLY;
-    reply.type = CAMERA_TYPE;
-    reply.devID = CAMERA_ID;
-    
-    if ([self sendData:(char *)&reply length:replyLen]) {
-        return true;
-    }
-    
-    return false;
-}
-
-
 
 @end
 

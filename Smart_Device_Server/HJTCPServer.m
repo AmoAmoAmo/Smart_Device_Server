@@ -225,7 +225,7 @@ pthread_mutex_t  mutex_dSend=PTHREAD_MUTEX_INITIALIZER;
     
     printf("---- sizeof request = %ld\n",sizeof(request));
     
-//    // 打印结构体
+//    // 打印结构体的方法
 //    char *tempBuf = (char *)malloc(sizeof(request));
 //    memcpy(tempBuf, &request, sizeof(request));
 //    for (int i = 0; i < sizeof(request); i++) {
