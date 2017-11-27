@@ -2,7 +2,7 @@
 服务端，iPad版，捕获音视频数据，编码并发送给client。
 ----
 # 演示图
-![演示图](http://photo.blog.sina.com.cn/showpic.html#blogid=a5b943a20102yibo&url=http://album.sina.com.cn/pic/0032acoOzy7fPj3SedSf4)
+![演示图](https://github.com/AmoAmoAmo/Smart_Device_Server/blob/master/server_1.gif?raw=true)
 
 
 ----
